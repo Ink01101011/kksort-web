@@ -28,8 +28,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <html lang="en">
       <head>
         <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="google-adsense-account" content="ca-pub-5951070896024195"></meta>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" />
+        <meta
+          name="google-adsense-account"
+          content="ca-pub-5951070896024195"
+        ></meta>
+        <script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5951070896024195"
+          crossOrigin="anonymous"
+        ></script>
         <Meta />
         <Links />
       </head>

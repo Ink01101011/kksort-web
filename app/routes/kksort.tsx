@@ -18,6 +18,9 @@ import type {
   BenchmarkWorkerTerminalResponse,
   SearchBenchmarkRow,
 } from "../workers/kksort-benchmark.types";
+import { parseNumberInput, toJson } from "@/utils";
+import LoadingText from "@/components/features/LoadingText";
+import CodePanel from "@/components/features/CodePanel";
 
 let benchmarkRequestCounter = 0;
 
@@ -31,9 +34,12 @@ function createBenchmarkWorker(): Worker {
     throw new Error("Web Worker is not supported in this browser.");
   }
 
-  return new Worker(new URL("../workers/kksort-benchmark.worker.ts", import.meta.url), {
-    type: "module",
-  });
+  return new Worker(
+    new URL("../workers/kksort-benchmark.worker.ts", import.meta.url),
+    {
+      type: "module",
+    },
+  );
 }
 
 function runWorkerBenchmark(
@@ -122,112 +128,42 @@ async function runSearchBenchmarkInWorker(
   return response.rows;
 }
 
-function parseNumberInput(raw: string): { numbers: number[]; invalidTokens: string[] } {
-  const numbers: number[] = [];
-  const invalidTokens: string[] = [];
-
-  for (const token of raw.split(",").map((chunk) => chunk.trim())) {
-    if (!token) {
-      continue;
-    }
-
-    const parsed = Number(token);
-    if (Number.isFinite(parsed)) {
-      numbers.push(parsed);
-    } else {
-      invalidTokens.push(token);
-    }
-  }
-
-  return { numbers, invalidTokens };
-}
-
-function toJson(value: unknown): string {
-  return JSON.stringify(value, null, 2);
-}
-
-function LoadingText({ text, progress }: { text: string; progress?: number }) {
-  const normalizedProgress =
-    typeof progress === "number" ? Math.max(0, Math.min(100, Math.round(progress))) : undefined;
-
-  return (
-    <div className="benchmark-loading-wrap mt-3">
-      <p className="benchmark-loading">
-        <span className="spinner" />
-        {text}
-        {normalizedProgress !== undefined && <span className="benchmark-progress-inline">{normalizedProgress}%</span>}
-      </p>
-      {normalizedProgress !== undefined && (
-        <div className="benchmark-progress-track" aria-hidden="true">
-          <div className="benchmark-progress-bar" style={{ width: `${normalizedProgress}%` }} />
-        </div>
-      )}
-    </div>
-  );
-}
-
-function CodePanel({ title, code }: { title: string; code: string }) {
-  const [copied, setCopied] = useState(false);
-
-  async function handleCopy(): Promise<void> {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1400);
-    } catch {
-      setCopied(false);
-    }
-  }
-
-  return (
-    <article className="home-card p-5">
-      <div className="section-head">
-        <h3 className="text-sm font-semibold tracking-wide uppercase">{title}</h3>
-        <button
-          type="button"
-          className={`copy-code-btn ${copied ? "copied" : ""}`}
-          onClick={handleCopy}
-          aria-label={`Copy ${title} code`}
-        >
-          {copied ? "Copied" : "Copy"}
-        </button>
-      </div>
-      <pre className="terminal-block mt-3">
-        <code>{code}</code>
-      </pre>
-    </article>
-  );
-}
-
 export function meta({}: Route.MetaArgs) {
   return [
     { title: "KKsort Demo + Benchmark" },
     {
       name: "description",
-      content: "Interactive demo and benchmark lab for all @kktestdev/kksort sorting and search functions.",
+      content:
+        "Interactive demo and benchmark lab for all @kktestdev/kksort sorting and search functions.",
     },
   ];
 }
 
 export default function KKsortDemo() {
   const [sortInput, setSortInput] = useState("64, 34, 25, 12, 22, 11, 90");
-  const [sortAlgorithm, setSortAlgorithm] = useState<SortAlgorithm>("quickSort");
+  const [sortAlgorithm, setSortAlgorithm] =
+    useState<SortAlgorithm>("quickSort");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   const [searchInput, setSearchInput] = useState("1, 3, 5, 7, 9, 11, 13");
-  const [searchAlgorithm, setSearchAlgorithm] = useState<SearchAlgorithm>("binarySearch");
+  const [searchAlgorithm, setSearchAlgorithm] =
+    useState<SearchAlgorithm>("binarySearch");
   const [searchTarget, setSearchTarget] = useState("7");
 
   const [sortBenchmarkSize, setSortBenchmarkSize] = useState("1200");
   const [sortBenchmarkRuns, setSortBenchmarkRuns] = useState("6");
-  const [sortBenchmarkRows, setSortBenchmarkRows] = useState<BenchmarkRow[]>([]);
+  const [sortBenchmarkRows, setSortBenchmarkRows] = useState<BenchmarkRow[]>(
+    [],
+  );
   const [sortBenchmarkError, setSortBenchmarkError] = useState("");
   const [isSortBenchmarking, setIsSortBenchmarking] = useState(false);
   const [sortBenchmarkProgress, setSortBenchmarkProgress] = useState(0);
 
   const [searchBenchmarkSize, setSearchBenchmarkSize] = useState("20000");
   const [searchBenchmarkRuns, setSearchBenchmarkRuns] = useState("20");
-  const [searchBenchmarkRows, setSearchBenchmarkRows] = useState<SearchBenchmarkRow[]>([]);
+  const [searchBenchmarkRows, setSearchBenchmarkRows] = useState<
+    SearchBenchmarkRow[]
+  >([]);
   const [searchBenchmarkError, setSearchBenchmarkError] = useState("");
   const [isSearchBenchmarking, setIsSearchBenchmarking] = useState(false);
   const [searchBenchmarkProgress, setSearchBenchmarkProgress] = useState(0);
@@ -237,18 +173,27 @@ export default function KKsortDemo() {
 
   const sortState = useMemo(() => {
     const parsed = parseNumberInput(sortInput);
-    const compare = sortOrder === "asc" ? (a: number, b: number) => a - b : (a: number, b: number) => b - a;
+    const compare =
+      sortOrder === "asc"
+        ? (a: number, b: number) => a - b
+        : (a: number, b: number) => b - a;
     const runSorter = SORT_OPTIONS[sortAlgorithm].run;
 
     return {
       ...parsed,
-      sorted: parsed.numbers.length > 0 ? runSorter([...parsed.numbers], compare) : [],
+      sorted:
+        parsed.numbers.length > 0
+          ? runSorter([...parsed.numbers], compare)
+          : [],
     };
   }, [sortAlgorithm, sortInput, sortOrder]);
 
   const searchState = useMemo(() => {
     const parsed = parseNumberInput(searchInput);
-    const normalized = SORT_OPTIONS.quickSort.run([...parsed.numbers], (a, b) => a - b);
+    const normalized = SORT_OPTIONS.quickSort.run(
+      [...parsed.numbers],
+      (a, b) => a - b,
+    );
     const selected = SEARCH_OPTIONS[searchAlgorithm];
     const baseDataset = selected.requiresSorted ? normalized : parsed.numbers;
     const workingDataset = [...baseDataset];
@@ -274,8 +219,14 @@ export default function KKsortDemo() {
     const parsedSize = Number(sortBenchmarkSize);
     const parsedRuns = Number(sortBenchmarkRuns);
 
-    if (!Number.isInteger(parsedSize) || parsedSize < 10 || parsedSize > 12000) {
-      setSortBenchmarkError("Dataset size must be an integer between 10 and 12000.");
+    if (
+      !Number.isInteger(parsedSize) ||
+      parsedSize < 10 ||
+      parsedSize > 12000
+    ) {
+      setSortBenchmarkError(
+        "Dataset size must be an integer between 10 and 12000.",
+      );
       return;
     }
 
@@ -289,13 +240,21 @@ export default function KKsortDemo() {
     setIsSortBenchmarking(true);
 
     try {
-      const rows = await runSortBenchmarkInWorker(parsedSize, parsedRuns, setSortBenchmarkProgress);
+      const rows = await runSortBenchmarkInWorker(
+        parsedSize,
+        parsedRuns,
+        setSortBenchmarkProgress,
+      );
       setSortBenchmarkProgress(100);
       setSortBenchmarkRows(rows);
     } catch (error) {
       setSortBenchmarkProgress(0);
       setSortBenchmarkRows([]);
-      setSortBenchmarkError(error instanceof Error ? error.message : "Unable to run sorting benchmark.");
+      setSortBenchmarkError(
+        error instanceof Error
+          ? error.message
+          : "Unable to run sorting benchmark.",
+      );
     } finally {
       setIsSortBenchmarking(false);
     }
@@ -305,8 +264,14 @@ export default function KKsortDemo() {
     const parsedSize = Number(searchBenchmarkSize);
     const parsedRuns = Number(searchBenchmarkRuns);
 
-    if (!Number.isInteger(parsedSize) || parsedSize < 100 || parsedSize > 150000) {
-      setSearchBenchmarkError("Dataset size must be an integer between 100 and 150000.");
+    if (
+      !Number.isInteger(parsedSize) ||
+      parsedSize < 100 ||
+      parsedSize > 150000
+    ) {
+      setSearchBenchmarkError(
+        "Dataset size must be an integer between 100 and 150000.",
+      );
       return;
     }
 
@@ -320,26 +285,35 @@ export default function KKsortDemo() {
     setIsSearchBenchmarking(true);
 
     try {
-      const rows = await runSearchBenchmarkInWorker(parsedSize, parsedRuns, setSearchBenchmarkProgress);
+      const rows = await runSearchBenchmarkInWorker(
+        parsedSize,
+        parsedRuns,
+        setSearchBenchmarkProgress,
+      );
       setSearchBenchmarkProgress(100);
       setSearchBenchmarkRows(rows);
     } catch (error) {
       setSearchBenchmarkProgress(0);
       setSearchBenchmarkRows([]);
-      setSearchBenchmarkError(error instanceof Error ? error.message : "Unable to run search benchmark.");
+      setSearchBenchmarkError(
+        error instanceof Error
+          ? error.message
+          : "Unable to run search benchmark.",
+      );
     } finally {
       setIsSearchBenchmarking(false);
     }
   }
 
   return (
-    <main className="home-grid min-h-screen px-4 py-8 md:px-8 md:py-10">
-      <div className="mx-auto max-w-7xl space-y-7">
-        <header className="home-card fade-in-up p-6 md:p-8">
+    <main className="home-grid kksort-page min-h-screen px-4 py-8 md:px-8 md:py-10">
+      <div className="kksort-layout mx-auto max-w-7xl space-y-7">
+        <header className="home-card kksort-hero-card fade-in-up p-6 md:p-8">
           <p className="home-kicker">interactive lab</p>
           <h1 className="home-title mt-4">KKsort Demo + Benchmark</h1>
           <p className="mt-4 max-w-3xl text-sm leading-relaxed md:text-base">
-            Play with all sorting/search functions and benchmark both categories on shared datasets.
+            Play with all sorting/search functions and benchmark both categories
+            on shared datasets.
           </p>
 
           <div className="mt-6 flex flex-wrap gap-2 text-xs font-mono">
@@ -350,23 +324,35 @@ export default function KKsortDemo() {
           </div>
 
           <div className="mt-6 flex flex-wrap gap-3">
-            <Link className="primary-link-btn" to="/">
+            <Link
+              className="primary-link-btn w-full text-center sm:w-auto"
+              to="/"
+            >
               Back To Overview
             </Link>
-            <a className="secondary-link-btn" href="https://www.npmjs.com/package/@kktestdev/kksort" target="_blank" rel="noreferrer">
+            <a
+              className="secondary-link-btn w-full text-center sm:w-auto"
+              href="https://www.npmjs.com/package/@kktestdev/kksort"
+              target="_blank"
+              rel="noreferrer"
+            >
               Open NPM Docs
             </a>
           </div>
         </header>
 
-        <section className="grid gap-6 xl:grid-cols-2">
-          <article className="home-card p-5 md:p-6">
+        <section className="kksort-primary-grid grid gap-4 sm:gap-6 lg:grid-cols-2">
+          <article className="home-card kksort-demo-card p-5 md:p-6">
             <h2 className="text-xl font-semibold">Sorting Demo</h2>
-            <p className="mt-2 text-sm">Switch algorithms and ordering strategy on the same input.</p>
+            <p className="mt-2 text-sm">
+              Switch algorithms and ordering strategy on the same input.
+            </p>
 
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <div className="mt-5 grid gap-4 xl:grid-cols-2">
               <label className="space-y-2 text-sm">
-                <span className="font-medium">Input numbers (comma separated)</span>
+                <span className="font-medium">
+                  Input numbers (comma separated)
+                </span>
                 <textarea
                   className="home-input h-28 w-full p-3 font-mono text-sm"
                   value={sortInput}
@@ -380,7 +366,9 @@ export default function KKsortDemo() {
                   <select
                     className="home-input w-full p-3 font-mono text-sm"
                     value={sortAlgorithm}
-                    onChange={(event) => setSortAlgorithm(event.target.value as SortAlgorithm)}
+                    onChange={(event) =>
+                      setSortAlgorithm(event.target.value as SortAlgorithm)
+                    }
                   >
                     {SORT_ALGORITHMS.map((algorithm) => (
                       <option key={algorithm} value={algorithm}>
@@ -395,7 +383,9 @@ export default function KKsortDemo() {
                   <select
                     className="home-input w-full p-3 font-mono text-sm"
                     value={sortOrder}
-                    onChange={(event) => setSortOrder(event.target.value as "asc" | "desc")}
+                    onChange={(event) =>
+                      setSortOrder(event.target.value as "asc" | "desc")
+                    }
                   >
                     <option value="asc">Ascending</option>
                     <option value="desc">Descending</option>
@@ -406,7 +396,8 @@ export default function KKsortDemo() {
 
             <div className="mt-4 rounded border border-black p-3 text-sm">
               <p>
-                <span className="font-mono">Complexity:</span> {selectedSort.complexity}
+                <span className="font-mono">Complexity:</span>{" "}
+                {selectedSort.complexity}
               </p>
               <p className="mt-1">
                 <span className="font-mono">Stable:</span> {selectedSort.stable}
@@ -416,27 +407,40 @@ export default function KKsortDemo() {
 
             <div className="mt-5 grid gap-4 md:grid-cols-2">
               <article className="rounded border border-black p-4">
-                <h3 className="text-sm font-semibold uppercase tracking-wide">Parsed Input</h3>
-                <pre className="mt-2 overflow-x-auto text-xs font-mono">{toJson(sortState.numbers)}</pre>
+                <h3 className="text-sm font-semibold uppercase tracking-wide">
+                  Parsed Input
+                </h3>
+                <pre className="mt-2 overflow-x-auto text-xs font-mono">
+                  {toJson(sortState.numbers)}
+                </pre>
               </article>
               <article className="rounded border border-black p-4">
-                <h3 className="text-sm font-semibold uppercase tracking-wide">Sorted Result</h3>
-                <pre className="mt-2 overflow-x-auto text-xs font-mono">{toJson(sortState.sorted)}</pre>
+                <h3 className="text-sm font-semibold uppercase tracking-wide">
+                  Sorted Result
+                </h3>
+                <pre className="mt-2 overflow-x-auto text-xs font-mono">
+                  {toJson(sortState.sorted)}
+                </pre>
               </article>
             </div>
 
             {sortState.invalidTokens.length > 0 && (
               <p className="mt-4 text-sm">
-                Invalid tokens ignored: <span className="font-mono">{sortState.invalidTokens.join(", ")}</span>
+                Invalid tokens ignored:{" "}
+                <span className="font-mono">
+                  {sortState.invalidTokens.join(", ")}
+                </span>
               </p>
             )}
           </article>
 
-          <article className="home-card p-5 md:p-6">
+          <article className="home-card kksort-demo-card p-5 md:p-6">
             <h2 className="text-xl font-semibold">Search Demo</h2>
-            <p className="mt-2 text-sm">Pick any search function and inspect before/after arrays.</p>
+            <p className="mt-2 text-sm">
+              Pick any search function and inspect before/after arrays.
+            </p>
 
-            <div className="mt-5 grid gap-4 md:grid-cols-3">
+            <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <label className="space-y-2 text-sm md:col-span-2">
                 <span className="font-medium">Dataset</span>
                 <input
@@ -455,13 +459,15 @@ export default function KKsortDemo() {
               </label>
             </div>
 
-            <div className="mt-4 grid gap-4 md:grid-cols-3">
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <label className="space-y-2 text-sm">
                 <span className="font-medium">Search Algorithm</span>
                 <select
                   className="home-input w-full p-3 font-mono text-sm"
                   value={searchAlgorithm}
-                  onChange={(event) => setSearchAlgorithm(event.target.value as SearchAlgorithm)}
+                  onChange={(event) =>
+                    setSearchAlgorithm(event.target.value as SearchAlgorithm)
+                  }
                 >
                   {SEARCH_ALGORITHMS.map((algorithm) => (
                     <option key={algorithm} value={algorithm}>
@@ -472,38 +478,55 @@ export default function KKsortDemo() {
               </label>
 
               <article className="rounded border border-black p-4 md:col-span-2">
-                <h3 className="text-sm font-semibold uppercase tracking-wide">Algorithm Info</h3>
+                <h3 className="text-sm font-semibold uppercase tracking-wide">
+                  Algorithm Info
+                </h3>
                 <p className="mt-2 text-sm">
-                  <span className="font-mono">Complexity:</span> {selectedSearch.complexity}
+                  <span className="font-mono">Complexity:</span>{" "}
+                  {selectedSearch.complexity}
                 </p>
                 <p className="mt-1 text-sm">
-                  <span className="font-mono">Requires Sorted:</span> {selectedSearch.requiresSorted ? "Yes" : "No"}
+                  <span className="font-mono">Requires Sorted:</span>{" "}
+                  {selectedSearch.requiresSorted ? "Yes" : "No"}
                 </p>
                 <p className="mt-1 text-sm">
-                  <span className="font-mono">Mutates Array:</span> {selectedSearch.mutates ? "Yes" : "No"}
+                  <span className="font-mono">Mutates Array:</span>{" "}
+                  {selectedSearch.mutates ? "Yes" : "No"}
                 </p>
                 <p className="mt-1 text-sm">{selectedSearch.note}</p>
               </article>
             </div>
 
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
               <article className="rounded border border-black p-4">
-                <h3 className="text-sm font-semibold uppercase tracking-wide">Dataset Before Search</h3>
-                <pre className="mt-2 overflow-x-auto text-xs font-mono">{toJson(searchState.datasetBeforeSearch)}</pre>
+                <h3 className="text-sm font-semibold uppercase tracking-wide">
+                  Dataset Before Search
+                </h3>
+                <pre className="mt-2 overflow-x-auto text-xs font-mono">
+                  {toJson(searchState.datasetBeforeSearch)}
+                </pre>
               </article>
               <article className="rounded border border-black p-4">
-                <h3 className="text-sm font-semibold uppercase tracking-wide">Dataset After Search</h3>
-                <pre className="mt-2 overflow-x-auto text-xs font-mono">{toJson(searchState.datasetAfterSearch)}</pre>
+                <h3 className="text-sm font-semibold uppercase tracking-wide">
+                  Dataset After Search
+                </h3>
+                <pre className="mt-2 overflow-x-auto text-xs font-mono">
+                  {toJson(searchState.datasetAfterSearch)}
+                </pre>
               </article>
             </div>
 
             <article className="mt-4 rounded border border-black p-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wide">Search Result</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-wide">
+                Search Result
+              </h3>
               {!searchState.isTargetValid ? (
                 <p className="mt-2 text-sm">Target must be numeric.</p>
               ) : searchState.index >= 0 ? (
                 <p className="mt-2 text-sm">
-                  Found target <code className="font-mono">{searchState.target}</code> at index <code className="font-mono">{searchState.index}</code>
+                  Found target{" "}
+                  <code className="font-mono">{searchState.target}</code> at
+                  index <code className="font-mono">{searchState.index}</code>
                 </p>
               ) : (
                 <p className="mt-2 text-sm">Target not found</p>
@@ -512,9 +535,14 @@ export default function KKsortDemo() {
           </article>
         </section>
 
-        <section className="home-card p-5 md:p-6">
-          <h2 className="text-xl font-semibold">Benchmark: Sorting Algorithms</h2>
-          <p className="mt-2 text-sm">Run all sorting functions on the same random dataset and compare speed ranking.</p>
+        <section className="home-card kksort-benchmark-card p-5 md:p-6">
+          <h2 className="text-xl font-semibold">
+            Benchmark: Sorting Algorithms
+          </h2>
+          <p className="mt-2 text-sm">
+            Run all sorting functions on the same random dataset and compare
+            speed ranking.
+          </p>
 
           <div className="mt-5 grid gap-4 sm:grid-cols-3">
             <label className="space-y-2 text-sm">
@@ -545,29 +573,50 @@ export default function KKsortDemo() {
             </div>
           </div>
 
-          {sortBenchmarkError && <p className="mt-3 text-sm">{sortBenchmarkError}</p>}
+          {sortBenchmarkError && (
+            <p className="mt-3 text-sm">{sortBenchmarkError}</p>
+          )}
           {isSortBenchmarking && (
-            <LoadingText text="Running sorting benchmark..." progress={sortBenchmarkProgress} />
+            <LoadingText
+              text="Running sorting benchmark..."
+              progress={sortBenchmarkProgress}
+            />
           )}
 
           {sortBenchmarkRows.length > 0 && (
-            <div className="mt-5 overflow-x-auto">
-              <table className="w-full border-collapse border border-black text-sm">
+            <div className="mt-5 overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0">
+              <table className="min-w-130 w-full border-collapse border border-black text-xs sm:text-sm">
                 <thead>
                   <tr className="bg-neutral-100">
-                    <th className="border border-black px-3 py-2 text-left font-mono">Rank</th>
-                    <th className="border border-black px-3 py-2 text-left font-mono">Algorithm</th>
-                    <th className="border border-black px-3 py-2 text-right font-mono">Total (ms)</th>
-                    <th className="border border-black px-3 py-2 text-right font-mono">Average (ms)</th>
+                    <th className="border border-black px-2 py-2 text-left font-mono sm:px-3">
+                      Rank
+                    </th>
+                    <th className="border border-black px-2 py-2 text-left font-mono sm:px-3">
+                      Algorithm
+                    </th>
+                    <th className="border border-black px-2 py-2 text-right font-mono sm:px-3">
+                      Total (ms)
+                    </th>
+                    <th className="border border-black px-2 py-2 text-right font-mono sm:px-3">
+                      Average (ms)
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {sortBenchmarkRows.map((row, index) => (
                     <tr key={row.algorithm}>
-                      <td className="border border-black px-3 py-2 font-mono">#{index + 1}</td>
-                      <td className="border border-black px-3 py-2 font-mono">{row.algorithm}</td>
-                      <td className="border border-black px-3 py-2 text-right font-mono">{row.totalMs.toFixed(2)}</td>
-                      <td className="border border-black px-3 py-2 text-right font-mono">{row.averageMs.toFixed(2)}</td>
+                      <td className="border border-black px-2 py-2 font-mono sm:px-3">
+                        #{index + 1}
+                      </td>
+                      <td className="border border-black px-2 py-2 font-mono sm:px-3">
+                        {row.algorithm}
+                      </td>
+                      <td className="border border-black px-2 py-2 text-right font-mono sm:px-3">
+                        {row.totalMs.toFixed(2)}
+                      </td>
+                      <td className="border border-black px-2 py-2 text-right font-mono sm:px-3">
+                        {row.averageMs.toFixed(2)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -576,10 +625,13 @@ export default function KKsortDemo() {
           )}
         </section>
 
-        <section className="home-card p-5 md:p-6">
-          <h2 className="text-xl font-semibold">Benchmark: Search Algorithms</h2>
+        <section className="home-card kksort-benchmark-card p-5 md:p-6">
+          <h2 className="text-xl font-semibold">
+            Benchmark: Search Algorithms
+          </h2>
           <p className="mt-2 text-sm">
-            Benchmarks all search functions using a shared target value (binary/jump use sorted source).
+            Benchmarks all search functions using a shared target value
+            (binary/jump use sorted source).
           </p>
 
           <div className="mt-5 grid gap-4 sm:grid-cols-3">
@@ -611,33 +663,62 @@ export default function KKsortDemo() {
             </div>
           </div>
 
-          {searchBenchmarkError && <p className="mt-3 text-sm">{searchBenchmarkError}</p>}
+          {searchBenchmarkError && (
+            <p className="mt-3 text-sm">{searchBenchmarkError}</p>
+          )}
           {isSearchBenchmarking && (
-            <LoadingText text="Running search benchmark..." progress={searchBenchmarkProgress} />
+            <LoadingText
+              text="Running search benchmark..."
+              progress={searchBenchmarkProgress}
+            />
           )}
 
           {searchBenchmarkRows.length > 0 && (
-            <div className="mt-5 overflow-x-auto">
-              <table className="w-full border-collapse border border-black text-sm">
+            <div className="mt-5 overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0">
+              <table className="min-w-190 w-full border-collapse border border-black text-xs sm:text-sm">
                 <thead>
                   <tr className="bg-neutral-100">
-                    <th className="border border-black px-3 py-2 text-left font-mono">Rank</th>
-                    <th className="border border-black px-3 py-2 text-left font-mono">Algorithm</th>
-                    <th className="border border-black px-3 py-2 text-right font-mono">Total (ms)</th>
-                    <th className="border border-black px-3 py-2 text-right font-mono">Average (ms)</th>
-                    <th className="border border-black px-3 py-2 text-left font-mono">Requires Sorted</th>
-                    <th className="border border-black px-3 py-2 text-left font-mono">Mutates</th>
+                    <th className="border border-black px-2 py-2 text-left font-mono sm:px-3">
+                      Rank
+                    </th>
+                    <th className="border border-black px-2 py-2 text-left font-mono sm:px-3">
+                      Algorithm
+                    </th>
+                    <th className="border border-black px-2 py-2 text-right font-mono sm:px-3">
+                      Total (ms)
+                    </th>
+                    <th className="border border-black px-2 py-2 text-right font-mono sm:px-3">
+                      Average (ms)
+                    </th>
+                    <th className="border border-black px-2 py-2 text-left font-mono sm:px-3">
+                      Requires Sorted
+                    </th>
+                    <th className="border border-black px-2 py-2 text-left font-mono sm:px-3">
+                      Mutates
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {searchBenchmarkRows.map((row, index) => (
                     <tr key={row.algorithm}>
-                      <td className="border border-black px-3 py-2 font-mono">#{index + 1}</td>
-                      <td className="border border-black px-3 py-2 font-mono">{row.algorithm}</td>
-                      <td className="border border-black px-3 py-2 text-right font-mono">{row.totalMs.toFixed(2)}</td>
-                      <td className="border border-black px-3 py-2 text-right font-mono">{row.averageMs.toFixed(2)}</td>
-                      <td className="border border-black px-3 py-2">{row.requiresSorted}</td>
-                      <td className="border border-black px-3 py-2">{row.mutates}</td>
+                      <td className="border border-black px-2 py-2 font-mono sm:px-3">
+                        #{index + 1}
+                      </td>
+                      <td className="border border-black px-2 py-2 font-mono sm:px-3">
+                        {row.algorithm}
+                      </td>
+                      <td className="border border-black px-2 py-2 text-right font-mono sm:px-3">
+                        {row.totalMs.toFixed(2)}
+                      </td>
+                      <td className="border border-black px-2 py-2 text-right font-mono sm:px-3">
+                        {row.averageMs.toFixed(2)}
+                      </td>
+                      <td className="border border-black px-2 py-2 sm:px-3">
+                        {row.requiresSorted}
+                      </td>
+                      <td className="border border-black px-2 py-2 sm:px-3">
+                        {row.mutates}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -646,7 +727,7 @@ export default function KKsortDemo() {
           )}
         </section>
 
-        <section className="grid gap-6 xl:grid-cols-2">
+        <section className="kksort-example-grid grid gap-4 sm:gap-6 lg:grid-cols-2">
           <CodePanel title="Sorting example" code={SORT_SNIPPET} />
           <CodePanel title="Search example" code={SEARCH_SNIPPET} />
         </section>
