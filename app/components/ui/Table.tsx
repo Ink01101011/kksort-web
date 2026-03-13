@@ -10,13 +10,13 @@ type TableProps<T extends Object> = {
 
 function Table<T extends Object>({ data, cols }: TableProps<T>) {
   return (
-    <table className="w-full border-collapse text-sm">
+    <table className="min-w-140 w-full border-collapse text-xs sm:text-sm">
       <thead>
         <tr className="bg-neutral-100">
           {cols.map((col) => (
             <th
               key={col.key as string}
-              className="border border-black px-3 py-2 text-left"
+              className="border border-black px-2 py-2 text-left sm:px-3"
             >
               {col.label}
             </th>
@@ -29,7 +29,7 @@ function Table<T extends Object>({ data, cols }: TableProps<T>) {
             {cols.map((col) => (
               <td
                 key={col.key as string}
-                className="border border-black px-3 py-2 font-mono"
+                className="border border-black px-2 py-2 font-mono sm:px-3"
               >
                 {String(item[col.key as keyof T])}
               </td>
